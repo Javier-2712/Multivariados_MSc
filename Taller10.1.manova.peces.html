@@ -9,7 +9,7 @@
 <meta name="author" content="Javier Rodríguez Barrios">
 <meta name="dcterms.date" content="2023-03-21">
 
-<title>Taller 10.1 Análisis de Varainza Multivariado - MANOVA</title>
+<title>Taller 10.1 Análisis de Varianza Multivariado - MANOVA</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -142,7 +142,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Taller 10.1 Análisis de Varainza Multivariado - MANOVA</h1>
+<h1 class="title">Taller 10.1 Análisis de Varianza Multivariado - MANOVA</h1>
 <p class="subtitle lead">Datos de morfométricos de peces de ríos de la India</p>
 </div>
 
@@ -372,7 +372,7 @@ Number of permutations: 999
 
 Response: Distances
           Df   Sum Sq   Mean Sq     F N.Perm Pr(&gt;F)  
-Groups     4 0.019804 0.0049509 3.281    999  0.026 *
+Groups     4 0.019804 0.0049509 3.281    999  0.015 *
 Residuals 65 0.098082 0.0015090                      
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
@@ -524,7 +524,7 @@ W = 0.83893, p-value = 3.043e-07</code></pre>
 <span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="fu">durbinWatsonTest</span>(modelo)</span></code><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> lag Autocorrelation D-W Statistic p-value
-   1      0.08444408       1.80425    0.22
+   1      0.08444408       1.80425    0.18
  Alternative hypothesis: rho != 0</code></pre>
 </div>
 </div>

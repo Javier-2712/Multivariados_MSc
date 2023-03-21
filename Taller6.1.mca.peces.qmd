@@ -1,0 +1,338 @@
+---
+title: "Taller 6.1 Anális de Correspondencias Múltiples - MCA"
+subtitle: "Datos de encuestas con comercialización de bagres en Colombia"
+author: "Javier Rodríguez Barrios"
+date: 'Actualizado: `r Sys.Date()`'
+lang: "es-ES"
+format:
+  html:
+    toc: true
+    toc-title: Contents
+    toc-depth: 4
+    toc-location: left
+    html-math-method: katex
+    css: styles.css  
+    link-external-icon: true
+    link-external-newwindow: true
+    theme: flatly
+---
+
+<b style='color:#1f78b4;'>
+
+# Exploración gráfica multivariada - base *Insectos*
+
+</b>
+
+
+<b style='color:#1f78b4;'>
+
+**Objetivo de la actividad:**
+
+</b>
+
+El siguiente ejercicio analizará los datos de un proyecto de ***SEPEC (2021)***, basado en 100 registros tomados aleatoriamente de encuestas realizadas a pescadores y comercializadores de diferentes especies de bagres en Colombia.  
+
+El **objetivo** de este ejercicio consiste en valorar la relación entre las variables categóricas producto de las encuestas y la información relacionada a la comercialización de los bagres censados. Se utilizará el siguiente archivo como base de datos: **bagres.xlsx**
+
+Ejercicio tomado de: Rodríguez-Barrios (2023) [Enlace del libro](https://www.editdiazdesantos.com/libros/9788490524817/Rodr%C3%ADguez-Barrios-An%C3%A1lisis-de-datos-ecol%C3%B3gicos-y-ambientales-aplicaciones-con-el-programa-R.html?isbn=978849052481)
+
+[Enlace de los archivos del libro](https://www.editdiazdesantos.com/libros/lanza_anejo.php?isbn=9788490524817&formato=.zip)
+
+
+<b style='color:#1f78b4;'>
+
+## Procedimiento de la exploración
+
+</b>
+
+**Análisis de Correspondencia múltiple (MCA)**. A partir de la muestra de 100 registros de bagres y de variables cualitativas o categóricas obtenidas mediante las encuestas realizadas, se identifican los siguientes elementos de los datos seleccionados:
+
+•	**Individuos activos**: Filas de la base de datos (100 registros de bagres).
+
+•	**Variables activas**: Variables categóricas que se utilizarán en el primer mca, que corresponden a las categóricas que han sido encuestadas.
+
+•	**Variables cuantitativas suplementarias (quanti.sup)**: Son las variables cuantitativas que presenta la base de datos de bagres (venta en kg y  precio de venta de los bagres).
+
+•	**Variables cualitativas suplementarias (quali.sup)**: corresponden a las que se requieran analizar por separado, en este caso serán los nombres vernaculares de los bagres. Las variables cuantitativas y cualitativas suplementarias serán evaluadas al final del ejercicio con un mca adicional.
+
+Más detalles de este procedimiento se pueden revisaar en el siguiente enlace: [MCA - Multiple Correspondence Analysis in R](http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/114-mca-multiple-correspondence-analysis-in-r-essentials/)
+
+
+
+<b style='color:#1f78b4;'>
+
+#### Librerías requeridas
+
+</b>
+
+```{r, warning=FALSE, message=FALSE}
+# Librerías requeridas
+library(tidyverse)
+library(xtable)       # Importar y exportar
+library(openxlsx)     # exportar "*.xlsx" 
+library(readxl)       # Importar y exportar
+
+library(FactoMineR)   # Para realizar el MCA
+library(factoextra)   # Para realizar el MCA
+library(dplyr)        # Para pasar variables a factor
+```
+
+
+
+<b style='color:#1f78b4;'>
+
+#### Cargar o importar la base de datos
+
+</b>
+
+```{r, eval = FALSE}
+# Base de datos
+bagres <- read_excel("bagres.xlsx")    # paquete "readxl" 
+head(bagres) 
+str(bagres)
+View(bagres)
+```
+
+
+
+<b style='color:#1f78b4;'>
+
+### 1) Ajuste de la base de datos de **bagres**.
+
+</b>
+
+Para la realización del primer mca, que solo incluirá a las variables activas (excluye a las suplementarias), se escogerán solo las variables categóricas requeridas para este análisis (columnas 1, 9 a la 22).
+
+```{r, warning=FALSE, message=FALSE}
+# Base de variables activas
+bagres <- read_excel("bagres.xlsx")    # paquete "readxl" 
+datos.activos = bagres[,c(1,9:22)]  # selección de columnas 1, 9 a 22 
+View(datos.activos)
+```
+
+Al analizar la estructura de la base `datos activos`, a excepción de las columnas 4 y 5 (variables cuantitativas o cuantitativas suplementarias) `Venta.kg` y `Precio.venta`, el resto son de tipología caracter (chr) y se deben pasar a factores, para que el MCA pueda ejecutarse de forma apropiada. Es importante aclarar que las columnas 1 a la 4 no corresponden a variables activas, pero serán tabuladas en el siguiente data.frame.
+
+```{r, warning=FALSE, message=FALSE}
+# Cambiar todas las variables cualitativas a factor
+datos.activos <- datos.activos %>% 
+                 mutate_all(factor)      # Pasar a factores excepto variables 5 y 6
+print(head(datos.activos))
+View(datos.activos)
+```
+
+
+<b style='color:#1f78b4;'>
+
+### 2) Primera ordenación de las variables cualitativas activas (mca1).
+
+</b>
+
+Las variables consideradas para esta ordenación, son las cualitativas (tipo factor) que pueden ejercer un efecto en la comercialización de los bagres.
+
+```{r, warning=FALSE, message=FALSE}
+# 2) Ordenación de las variables acualitativas activas
+# Las columnas 5 a 18 son las requeridas por el mca
+str(datos.activos)
+View(datos.activos[,c(2:15)])
+mca1 <- MCA(datos.activos[,c(2:15)], graph = FALSE)
+summary(mca1)
+```
+
+El anterior insumo es importante, porque define el orcentaje de varianza que capturan los 29 ejes canónicos - `Eigenvalues` y selecciona a las 10 variables de mayor relevancia para el análisis de ordenación - `mca Categories (the 10 first)` en los tres primeros ejes canónicos - `Categorical variables (eta2)`. 
+
+
+<b style='color:#1f78b4;'>
+
+#### 2.1) Ajuste de la ordenación definida por los autovalores
+
+</b>
+
+A continuación se calcula el componente tabular, para identificar la varianza que captira cada eje canónico o `Dim.i`, en donde `i` es cada uno de los ejes de la ordenación.
+
+```{r, warning=FALSE, message=FALSE}
+# # Matriz de autovalores de los seis primeros ejes canónicos
+head(mca1$eig)
+```
+
+
+En la @fig-figura1, se grafican los resultados de la tabla anterior.
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura1
+#| fig-cap: Varianza capturada por cada eje canónico
+
+# Figura de autovalores (para la escogencia de variables)
+x11()
+fviz_screeplot(mca1, addlabels = TRUE, ylim = c(0, 20),
+               ylab = "% Varianza explicada", xlab = "Dimensiones",
+               col="steelblue")
+```
+
+
+<b style='color:#1f78b4;'>
+
+#### 2.2) Figuras generales del mca1
+
+</b>
+
+La @fig-figura2 muestra la relación de las 14 variables categoricas del análisis, el nivel de relación o cercanía es definido por la distancia chi cuadrado. `fviz_mca_var` representa a la grafica de variables, `mca.cor` muestra solo a las variables que más contribuyen a la ordenación, `repel = TRUE` permite visualizar los elementos sin solapamientos.
+ior.
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura2
+#| fig-cap: Ordenación de las variables que más contribuyen al análisis
+
+# Figura de relación de las variables categóricas
+x11()
+fviz_mca_var(mca1, choice = "mca.cor", repel = TRUE, 
+             ggtheme = theme_minimal())
+```
+
+La @fig-figura3 muestra el biplot integrado por los 100 registros de peces y las variables categóricas que los caracterizan. `fviz_mca_biplot` permite visualizar a las observaciones o filas de la base de datos (números en azul) y a las variables con mayor contribución al análisis (en rojo).
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura3
+#| fig-cap: Ordenación de las variables que más contribuyen al análisis y de las observaciones (registros de peces)
+
+# Figura del Biplot de ordenación registros de peces y de variables
+x11()
+fviz_mca_biplot(mca1, choice = "mca.cor",repel = TRUE,         
+                ggtheme = theme_minimal())
+
+```
+
+La @fig-figura4 define a l00 registros de peces con todas las variables activas y sus categorías (no incluye al comando "mca.cor").
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura4
+#| fig-cap: Ordenación de todas las variables activas y de las observaciones (registros de peces)
+
+# Figura del Biplot de ordenación para registros de peces y categoricas de las variables
+x11()
+fviz_mca_biplot(mca1, repel = TRUE,       
+                ggtheme = theme_minimal())
+```
+
+<b style='color:#1f78b4;'>
+
+#### 2.3) Figuras del mca con ponderaciones
+
+</b>
+
+A continuación se visualiza la ordenación de las observaciones (100 registros de peces) y su nivel de importancia (observaciones en rojo son las más importantes). `fviz_mca_ind`, permite visualizar a los individuos u observaciones (@fig-figura5).
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura5
+#| fig-cap: Ordenación de las observaciones (registros de peces) y su nivel de contribución al análisis.
+
+# Contribuciones de las observaciones (filas de la la base de bagres)
+x11()
+fviz_mca_ind(mca1, col.ind = "cos2", 
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE, 
+             ggtheme = theme_minimal())
+```
+
+En la @fig-figura6 se muestra la ordenación de las variables activas y su nivel de contribución (variables en rojo son las más importantes). 
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura6
+#| fig-cap: Ordenación de las variables activas y su nivel de contribución al análisis.
+
+# Contribuciones de las variables categóricas (columnas de variables activas)
+x11()
+fviz_mca_var(mca1, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE, ggtheme = theme_minimal())
+
+```
+
+
+<b style='color:#1f78b4;'>
+
+### 3) Segunda ordenación de las variables cualitativas activas (mca2).
+
+</b>
+
+A continuación se realiza un mca con dos elementos adicionales a a las variables activas ordenadas anteriormente:
+
+- **Variables cuantitativas suplementarias (quanti.sup)**, correspondientes a la venta en kilogramos y el precio de venta de los bagres. 
+
+- **Variables cualitativas suplementarias (quali.sup)**, representadas por los nombres o tipos de bagres (columna: Nombre.vernacular)
+
+Esto con el objetivo de visualizar aspectos asociados a la comercialización de los bagres (variables cuantitativas y tipos de bagres), en respuesta a las variables categóricas producto de las encuestas (variables activas).
+
+**Paso 1**. Incluir los nombres de los bagres a la base "datos.activos" (datos.activos.2)
+
+```{r, warning=FALSE, message=FALSE}
+# Pasar nombres de los bagres a factor
+bagres <- read_excel("bagres.xlsx")    # paquete "readxl"
+bagres$Nombre.vernacular = as.factor(bagres$Nombre.vernacular)
+
+# Crear data frame con los nombres de los bagres y variables cuantitativas.
+datos.activos.1 <- data.frame(bagres = bagres[,6], 
+                              venta.kg = bagres[,7],
+                              Precio.venta = bagres[,8], 
+                              datos.activos[,2:15])
+str(datos.activos.1)
+```
+
+**Paso 2**. Nuevo mca, que incluye a las variables suplementarias (quali.sup y quanti.sup) 
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+# mca con nombres de los bagres (quali.sup) y variables cuantitativas (cuanti sub)
+mca2  <- MCA (datos.activos.1, 
+              quali.sup = 1,            # Registros de peces (X)
+              quanti.sup = 2:3,         # 2 y 3 son Variables cuantitativas
+              graph=FALSE) 
+```
+
+**Paso 3**. Gráfica de las variables cuantitativas suplementarias (quanti.sup) (@fig-figura7). 
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura7
+#| fig-cap: Ordenación de las variables activas y su nivel de contribución al análisis.
+
+# Figura de las variables suplementarias (azul) y las activas (rojo)
+x11()
+fviz_mca_var(mca2, 
+             choice = "mca.cor",    # Principales variables cualitativas
+             repel = TRUE)          # Quita el solapamiento de las variables.
+```
+
+**Paso 4**. Grafica de las variables cualitativas suplementarias (quali.sup) (@fig-figura8)
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura8
+#| fig-cap: Ordenación de todas las variables activas que más contribuyen al análisis (rojo) y su relación co las variables cualitativas suplementarias (verde).
+
+# Figura de las variables suplementarias (verde), las activas (rojo) y los individuos (azul)
+x11()
+fviz_mca_biplot(mca2, repel = TRUE,
+                geom.ind = c("n", "n"),    # No mostrar a los individuos
+                ggtheme = theme_bw())      # Puede usar temas de "ggplot2"    
+```
+
+La @fig-figura9 muestra las elipses que representan a los intervalos de confianza de cada grupo de bagres, para medir el tipo de relación o de colapamiento entre estos, basado en las variables activas que los caracterizan.
+
+```{r, fig.height=4, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura9
+#| fig-cap: Relación entre las especies de bagres y con sus observaciones (registros de peces).
+
+# Elipses por cada tipo de bagre
+x11()
+fviz_ellipses(mca2, "Nombre.vernacular",
+              geom = "text", repel = TRUE)
+```
+
+
+
+
+<b style='color:#1f78b4;'>
+
+## **Taller de entrenamiento**
+
+</b>
+
+**Objetivo:** Poner en práctica los conceptos vistos en este taller, realizando las siguientes opciones realizando un NMDS con las variables biológicas (taxones). Enviar los resultados al *Teams* del profesor.
+

@@ -1,0 +1,586 @@
+---
+title: "Taller 7.1 Análisis de Redundancia - RDA"
+subtitle: "Datos de densidades de Microalgas en un río de montaña"
+author: "Javier Rodríguez Barrios"
+date: 'Actualizado: `r Sys.Date()`'
+lang: "es-ES"
+format:
+  html:
+    toc: true
+    toc-title: Contents
+    toc-depth: 4
+    toc-location: left
+    html-math-method: katex
+    css: styles.css  
+    link-external-icon: true
+    link-external-newwindow: true
+    theme: flatly
+---
+
+<b style='color:#1f78b4;'>
+
+# Análisis de Redundancia - RDA - base *Microalgas*
+
+</b>
+
+
+<b style='color:#1f78b4;'>
+
+**Objetivo de la actividad:**
+
+</b>
+
+La siguiente base de datos es tomada del trabajo de (Osorio, 2021), relacionado a un estudio sobre la composición de microalgas de la ciénaga Sevillano en el complejo lagunar de la Ciénaga Grande de Santa Marta (Colombia). La información contiene a 21 géneros de microalgas (matriz Y) y 10 variables ambientales (matriz X) medidas en 24 observaciones (localidades y campañas de muestreo). El propósito del ejercicio consiste en determinar la relación entre la composición de las microalgas y las variables fisicoquímicas de su ambiente, aplicando un análisis de redundancia (RDA) y un Análisis de Correspondencia Canónica (ACC), para finalmente comparar la aplicación de cada técnica. Se utilizará el siguiente archivo: **Microalgas.csv**
+
+Ejercicio tomado de: Rodríguez-Barrios (2023) [Enlace del libro](https://www.editdiazdesantos.com/libros/9788490524817/Rodr%C3%ADguez-Barrios-An%C3%A1lisis-de-datos-ecol%C3%B3gicos-y-ambientales-aplicaciones-con-el-programa-R.html?isbn=978849052481)
+
+[Enlace de los archivos del libro](https://www.editdiazdesantos.com/libros/lanza_anejo.php?isbn=9788490524817&formato=.zip) Revisar el capitulo de Análisis de Redundancia - RDA
+
+[Numerical Ecology With R - Borcard et al. 2018](https://link-springer-com.biblioteca.unimagdalena.edu.co/chapter/10.1007/978-3-319-71404-2_6#Sec3) Capítulo de Análisis de Redundancia - RDA
+
+
+<b style='color:#1f78b4;'>
+
+## Procedimiento resumido de la ordenación con el RDA
+
+</b>
+
+- Cargar librerías y funciones requeridas
+
+- Cargar la base `Microalgas.csv` 
+
+- Realizar los ajustes a las variables y factores
+
+- Correr el RDA con todas las variables
+
+- Correr el RDA con las variables ambientales seleccionadas
+
+- Figuras de BIPLOT y TRIPLOT con librerías `"vegan"` y `"ggplot2"`.
+
+
+
+<b style='color:#1f78b4;'>
+
+#### Cargar las librerías requeridas
+
+</b>
+
+```{r, warning=FALSE, message=FALSE}
+# Librerías requeridas
+library(ade4)
+library(adegraphics)
+library(adespatial)
+library(cocorresp)
+library(vegan)
+library(MASS)
+library(ellipse)
+library(FactoMineR)
+library(rrcov)
+library(ggplot2)
+library(reshape2)
+library(ggrepel)
+library(ggforce)
+
+```
+
+
+<b style='color:#1f78b4;'>
+
+#### Funciones adicionales (Bordcard et al. 2018)
+
+</b>
+
+```{r, warning=FALSE, message=FALSE}
+# Funciones a cargar
+source("hcoplot.R")
+source("triplot.rda.R")
+source("plot.lda.R")
+source("polyvars.R")
+source("screestick.R")
+
+```
+
+
+
+<b style='color:#1f78b4;'>
+
+#### Cargar o importar la base de datos
+
+</b>
+
+Esta base de datos cuenta con una variable agrupadora o factor (Tributario), 10 variables ambientales y 21 taxones de microalgas. 
+
+```{r, message = FALSE, warning=FALSE}
+# Base de datos
+datos = read.csv2("Microalgas.csv",row.names=1)
+```
+
+
+<b style='color:#1f78b4;'>
+
+#### Ajuste de las bases de datos biológica (tax.hel) y Ambiental (amb)
+
+</b>
+
+A continuación se realizará un ajuste de la base de datos, primero convirtiendo a la columna `Tributario` como un factor, luego transformando a las variables ambientales `amb` con logaritmo en base 10 y finalmente ajustando a los taxones `tax.hel` con la transformación de Hellinger. Las abreviaturas en las filas `T1.1, ..., T1.6, ...` Representan el número del tributario (`T1`) y el numero de la visita realizada al lugar de muestreo (`1`).
+
+```{r, message = FALSE, warning=FALSE}
+# Ajuste de factores
+datos$Tributario = as.factor (datos$Tributario) 	
+# str(datos)    # Nueva estructura de la base de datos
+
+# Variables ambientales
+amb=(datos[,c(2:11)]+1)
+round(head(amb),2)
+```
+
+Los datos de abundancia de los taxones están en cifras decimales, debido a la transformación logarítmica que se les aplicó. 
+
+```{r, message = FALSE, warning=FALSE}
+# Variables biológicas linealizadas - Taxones con Hellinger
+tax.hel=decostand(datos[,c(12:32)],"hellinger")
+round(head(tax.hel),2)
+```
+
+<b style='color:#1f78b4;'>
+
+## Doce pasos para el análisis de redundancia - RDA.
+
+</b>
+
+
+
+<b style='color:#1f78b4;'>
+
+### Paso 1. Ordenación de los taxones y las variables ambientales.
+
+</b>
+
+En el siguiente analisis se relaciona a la matriz de datos biológicos (abundancia de taxones) con la matriz de datos ambientales. A continuación se determinan los insumos generales del análisis.
+
+```{r, message = FALSE, warning=FALSE}
+# 1. Realización del RDA
+tax.rda<-rda(tax.hel ~.,amb)
+tax.rda # Resultados resumidos
+```
+
+*Matriz 1*. `Partición de la varianza`. La inercia restringida es la que define el ajuste (restringida) en la relación entre las dos matrices de variables. Para este caso es de 0.54 (54%). Más adelante se aplicará el R2 de Ezequiel (1930), para encontrar el ajuste sin restricción (ajuste final del RDA). A continuación se muestra el comando para presentar los resultados detallados del RDA. 
+
+*Matriz 2*. `Importancia de los componentes`. Muestra que se requiere de 10 ejes canónidos (RDA) para explicar el 54% de la varianza explicada por la inercia restringida. La inercia restante se explica por los ejes de los 12 componentes principales PC.
+
+*Matriz 3*. `Species scores`, muestra las coordenadas de las especies en los ejes canónicos, de los cuales se graficarán los dos primeros.
+
+*Matriz 4*. `Site scores`, Muestra las coordenadas de los sitios
+
+*Matriz 5*. `Site constraints`, muestra a las coordenadas de los sitos en el espacio de los taxones.
+
+*Matriz 6*. `Biplot scores`, muestra las coordenadas de las variables ambientales.
+
+```{r, message = FALSE, warning=FALSE}
+
+summary(tax.rda) # Resultados completos
+```
+
+A continuación se muestra una manera de extraer algunos insumos por separado del anterior comando `summary(tax.rda)`. Las coordenadas de los taxonesy de los sitios serán tenidas en cuenta más adelante, para las figuras de `ggplot2`.
+
+```{r, eval= FALSE}
+# Matriz 3. Escores o coordenadas de los taxones
+species.scores <- scores(tax.rda, display = "species")
+
+# Escores o coordenadas de los sitios
+site.scores <- scores(tax.rda, display = "sites")
+
+# Escores de las variables restringidas
+biplot.scores <- scores(tax.rda, display = "bp")
+
+```
+
+
+
+
+<b style='color:#1f78b4;'>
+
+### Paso 2. Coeficientes de las variables regresoras (ambientales), en el modelo lineal.
+
+</b>
+
+Solo se mostrarán los tres primeros ejes canónicos `[,1:3]`, para facilidad de su interpretación.
+
+```{r, message = FALSE, warning=FALSE}
+round(coef(tax.rda),2)[,1:3]
+```
+
+Se puede pensar en un modelo lineal, que tiene en cuenta a los coeficientes descritos en el primer eje canónico:
+
+<b style='color:#1f78b4;'>
+
+Distribución de los taxones de microalgas (**Matriz Y**) = 0.01(**Amonio**) – 0.18(**Nitrito**) + … + 0.06(**Temp**)
+
+</b>
+
+
+<b style='color:#1f78b4;'>
+
+### Paso 3. R2 sin ajuste vs. R2 ajustado (Ezequiel 1930)
+
+</b>
+
+La nueva inercia no sesgada (sin restricción) calculada con la formula de Ezequiel es de 0.19 o del 19%. 
+
+```{r, message = FALSE, warning=FALSE}
+# R^2 sin ajuste (inercia restringida)
+(R2 <- RsquareAdj(tax.rda)$r.squared)
+
+# R^2 ajustado
+(R2adj <- RsquareAdj(tax.rda)$adj.r.squared)
+```
+
+
+<b style='color:#1f78b4;'>
+
+### Paso 4. Figura de Triplot
+
+</b>
+
+A continuación, se realizará la gráfica del RDA (figura Triplot) (@fig-figura1), que relaciona a los tres elementos: taxones, variables ambientales y sitios de muestreo mediante dos tipos de escalamiento (Scalings 1 y 2).
+
+```{r, fig.height=5, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura1
+#| fig-cap: Figuras del RDA con todas las variables
+
+dev.new(title = "RDA scaling 1 y 2",
+        width = 16,height = 8,noRStudioGD = TRUE)
+par(mfrow = c(1, 2))
+# Scaling 1
+plot(tax.rda,scaling=1, display = c("sp", "lc", "cn"), main="RDA - scaling 1")
+# Scaling 2
+plot(tax.rda, display = c("sp", "lc", "cn"), main="RDA - scaling 2")
+
+par(mfrow = c(1, 1))
+```
+
+
+<b style='color:#1f78b4;'>
+
+### Paso 5. Prueba global del RDA 
+
+</b>
+
+Esta prueba obtiene un valor p = 0.04296 *, por lo cual se valida que el modelo de regresión múltiple de este RDA presenta un ajuste apropiado ( a pesar de la poca inercia encontrada).
+
+```{r, message = FALSE, warning=FALSE}
+# Prueba global del RDA (dos opciones)
+# Ho= no hay relación entre las variables X y las Y
+anova(tax.rda, permutations = how(nperm = 1000))
+```
+
+A continuación se muestra que ninguno de los ejes canónicos prsenta significancia para la ordenación de las variables y de las observaciones de este análisis (valor p > 0.05), sin embargo se continuará con el procedimiento.
+
+```{r, message = FALSE, warning=FALSE}
+# Prueba de los ejes canónicos
+anova(tax.rda, by = "axis", permutations = how(nperm = 1000))
+```
+
+
+
+<b style='color:#1f78b4;'>
+
+### Paso 6.  Factor de inflación de la varianza (VIF) del RDA
+
+</b>
+
+
+```{r, message = FALSE, warning=FALSE}
+# Factor de inflación
+round(vif.cca(tax.rda), 2)
+```
+
+Los resultados están por debajo de un VIF de 10, por lo que todas las variables son importantes para el análisis. 
+
+
+<b style='color:#1f78b4;'>
+
+### Paso 7.  Criterios de selección de variables ambientales (X)
+
+</b>
+
+#### 7.1 Forward selection usando forward.sel()
+
+El comando `forward.sel`permitirá definir a las variables ambientales con importancia para ser relacionadas con los taxones en el RDA. Para este caso define a la *Conductividad* y a la *Velocidad del la Corriente*. 
+
+```{r, message = FALSE, warning=FALSE}
+# Factor de inflación
+forward.sel(tax.hel, amb, adjR2thresh = R2adj)
+```
+
+
+#### 7.2 Eliminación anticipada (Backward) usando "ordistep()" de vegan
+
+El anterior resultado es validado por esta función `ordistep`, la cual luego de varias corridas, define a las mismas variables ambientales *Conductividad* y a la *Velocidad del la Corriente*, pero incluye a la *Temperatura* como las significativas para el análisis RDA. Para continuar el ejercicio, a continuación se realizará un nuevo RDA (RDA parsimonioso) con estas tres variables.
+
+```{r, message = FALSE, warning=FALSE}
+# 7.2 Eliminación anticipada (Backward) usando "ordistep()" de vegan
+step.backward <- ordistep(tax.rda,permutations = how(nperm = 499))
+```
+
+
+<b style='color:#1f78b4;'>
+
+### Paso 8. R2 ajustado
+
+</b>
+
+Al validar el ajuste del RDA con las dos variables seleccionadas, se obtiene un valor de 0.3 o 30% de ajuste. 
+
+```{r, message = FALSE, warning=FALSE}
+# Se define un R^2: 0.3 (30% de relación)
+RsquareAdj(step.backward)
+```
+
+<b style='color:#1f78b4;'>
+
+### Paso 9. RDA Parsimonioso (rda.par)
+
+</b>
+
+RDA Parsimonioso significa que se realizará un nuevo RDA con las dos variables ambientales seleccionadas.
+
+```{r, message = FALSE, warning=FALSE}
+# RDA resumido
+(rda.pars <- rda(tax.hel ~ Temp + Vel_Corriente + Conductividad, data = amb))
+```
+
+<b style='color:#1f78b4;'>
+
+### Paso 10. Coeficientes del modelo lineal parsimonioso
+
+</b>
+
+
+```{r, message = FALSE, warning=FALSE}
+# RDA resumido
+round(coef(rda.pars),2)
+```
+
+<b style='color:#1f78b4;'>
+
+### Paso 11. Dos Triplots del RDA parsimonioso (Scaling 1 y Scaling 2)
+
+</b>
+
+
+```{r, fig.height=5, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura2
+#| fig-cap: Figuras del RDA con las tres variables seleccionadas
+
+dev.new(title = "RDA Parsimonioso scaling 1 y 2",
+        width = 16,height = 8,noRStudioGD = TRUE)
+par(mfrow = c(1, 2))
+
+# Scaling 1
+plot(rda.pars,scaling = 1,display = c("sp", "lc", "cn"),
+     main = "Triplot RDA taxa.hel ~ amb - scaling 1")
+spe.sc1 <- scores(rda.pars, choices = 1:2, scaling = 1, display = "sp")
+arrows(0, 0, spe.sc1[, 1] * 0.92,spe.sc1[, 2] * 0.92,
+       length = 0, lty = 1, col = "red")
+
+# Scaling 2
+plot(rda.pars,scaling = 2,display = c("sp", "lc", "cn"),
+     main = "Triplot RDA taxa.hel ~ amb - scaling 2")
+spe.sc1 <- scores(rda.pars, choices = 1:2, scaling = 2, display = "sp")
+arrows(0, 0, spe.sc1[, 1] * 0.92,spe.sc1[, 2] * 0.92,
+       length = 0, lty = 1, col = "red")
+par(mfrow = c(1, 1))
+```
+
+
+
+
+#----
+
+<b style='color:#1f78b4;'>
+
+### Paso 12. RDA con paquete ggplot2
+
+</b>
+
+Se realizará la figura del RDA con el paquete `ggplot2`, dada su mejor presentación, comparado a las figuras anteriores, realizadas con el paquete `vegan`. Los siguientes comandos sirven para identificar las coorddenadas de los sitios ("`sites`"), los taxones ("`sp`") y las variables ambientales (“`vectors`”). 
+
+```{r, message = FALSE, warning=FALSE}
+# Insumos del RDA parsimonioso o que resume a las tres variables
+(rda.pars <- rda(tax.hel ~ Temp + Vel_Corriente + Conductividad, data = amb))	# RDA resumido.
+names(summary(rda.pars))	# Insumos del RDA parsimonioso
+
+```
+
+<b style='color:#fc8d62;'>
+
+####  12.1 Coordenadas de los sitios y el factor "coord.sit"
+
+</b>
+
+```{r, message = FALSE, warning=FALSE}
+# 1) Coordenadas de los sitios y el factor (coord.sit)
+coord.sit <- as.data.frame(scores(rda.pars,
+                                  choices = 1:2, display = "sites"))     # Coordenadas de los sitios
+coord.sit$sitio <- rownames(coord.sit)      # Crear una columna con nombres de los sitios
+coord.sit$grp <-  datos$Tributario               # Adicionar columna de grupos por Tributario
+head(coord.sit)                             # vista resumida de las coordenadas de sitios
+```
+
+
+<b style='color:#fc8d62;'>
+
+#### 12.2 Coordenadas de los taxones "coord.tax"
+
+</b>
+
+
+```{r, message = FALSE, warning=FALSE}
+# 2) Coordenadasde las especies (coord.tax) 
+coord.tax <- as.data.frame(scores(rda.pars,
+                                  choices = 1:2, display = "sp"))    # Dos primeros ejes
+coord.tax$especies <- rownames(coord.tax)       # Insertar columna con nombres de las especies
+head(coord.tax) 
+
+```
+
+
+<b style='color:#fc8d62;'>
+
+#### 12.3 Coordenadas de las ambientales "coord.amb"
+
+</b>
+
+
+```{r, message = FALSE, warning=FALSE}
+# 3) Coordenadasde las especies (coord.tax) 
+amb1 <- envfit(tax.rda, amb) # Se pueden seleccionar variables con, p.max = 0.05
+coord.amb = as.data.frame(scores(amb1, "vectors"))
+coord.amb$amb <- rownames(coord.amb)         # Insertar columna con nombres de las ambientales
+coord.amb = coord.amb[c(6,8,10),] # La 3 variables seleccionadas
+head(coord.amb) 
+
+```
+
+
+
+
+
+<b style='color:#fc8d62;'>
+
+#### 12.4 Figura del RDA con vectores de especies
+
+</b>
+
+```{r, fig.height=5, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura3
+#| fig-cap: Figuras del RDA con las variables biológicas y los sitios
+
+x11()
+ggplot() +
+  # Sitios
+  geom_text_repel(data = coord.sit,aes(RDA1,RDA2,label=row.names(coord.sit)),
+                  size=4)+   # Muestra el cuadro de la figura
+  geom_point(data = coord.sit,aes(RDA1,RDA2,colour=grp),size=4)+
+  scale_shape_manual(values = c(21:25))+
+  # Taxones  
+  geom_segment(data = coord.tax,aes(x = 0, y = 0, xend = RDA1, yend = RDA2), 
+               arrow = arrow(angle=22.5,length = unit(0.25,"cm"),
+                             type = "closed"),linetype=1, size=0.6,colour = "red")+
+  geom_text_repel(data = coord.tax,aes(RDA1,RDA2,label=especies),colour = "red")+
+  # Factor 
+  geom_polygon(data=coord.sit,aes(x=RDA1,y=RDA2,fill=grp,group=grp),alpha=0.30) +
+  
+  geom_hline(yintercept=0,linetype=3,size=1) + 
+  geom_vline(xintercept=0,linetype=3,size=1)+
+  guides(shape=guide_legend(title=NULL,color="black"),
+         fill=guide_legend(title=NULL))+
+  theme_bw()+theme(panel.grid=element_blank())
+```
+
+
+<b style='color:#fc8d62;'>
+
+#### 12.5 Figura con vectores de especies (sin flechas)
+
+</b>
+
+```{r, fig.height=5, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura4
+#| fig-cap: Figuras del RDA con las variables biológicas y los sitios
+
+x11()
+ggplot() +
+  # Sitios
+  geom_text_repel(data = coord.sit,aes(RDA1,RDA2,label=row.names(coord.sit)),
+                  size=4)+   # Muestra el cuadro de la figura
+  geom_point(data = coord.sit,aes(RDA1,RDA2,colour=grp),size=4)+
+  scale_shape_manual(values = c(21:25))+
+  # Taxones  *valores de cero para caracteres de las flechas (arrow)
+  geom_segment(data = coord.tax,aes(x = 0, y = 0, xend = RDA1, yend = RDA2), 
+               arrow = arrow(angle=0,length = unit(0,"cm"),
+                             type = "closed"),linetype=0, size=0,colour = "red")+
+  geom_text_repel(data = coord.tax,aes(RDA1,RDA2,label=especies),colour = "red")+
+  # Factor 
+  geom_polygon(data=coord.sit,aes(x=RDA1,y=RDA2,fill=grp,group=grp),alpha=0.30) +
+  
+  geom_hline(yintercept=0,linetype=3,size=1) + 
+  geom_vline(xintercept=0,linetype=3,size=1)+
+  guides(shape=guide_legend(title=NULL,color="black"),
+         fill=guide_legend(title=NULL))+
+  theme_bw()+theme(panel.grid=element_blank())
+
+```
+
+
+<b style='color:#fc8d62;'>
+
+#### 12.6 Figura con vectores de especies y ambientales
+
+</b>
+
+```{r, fig.height=5, dev='svg', message=FALSE, warning=FALSE}
+#| label: fig-figura5
+#| fig-cap: Figuras del RDA con las variables biológicas, las ambientales y los sitios
+
+x11()
+ggplot() +
+  # Sitios
+  geom_text_repel(data = coord.sit,aes(RDA1,RDA2,label=row.names(coord.sit)),
+                  size=4)+   # Muestra el cuadro de la figura
+  geom_point(data = coord.sit,aes(RDA1,RDA2,colour=grp),size=4)+
+  scale_shape_manual(values = c(21:25))+
+  # especies  
+  geom_segment(data = coord.tax,aes(x = 0, y = 0, xend = RDA1, yend = RDA2), 
+               arrow = arrow(angle=0,length = unit(0,"cm"),
+                             type = "closed"),linetype=0, size=0,colour = "red")+
+  geom_text_repel(data = coord.tax,aes(RDA1,RDA2,label=especies),colour = "red")+
+  # Ambiental  
+  geom_segment(data = coord.amb,aes(x = 0, y = 0, xend = RDA1, yend = RDA2), 
+               arrow = arrow(angle=22.5,length = unit(0.25,"cm"),
+                             type = "closed"),linetype=1, size=0.6,colour = "blue")+
+  geom_text_repel(data = coord.amb,aes(RDA1,RDA2,label=row.names(coord.amb)),colour = "#00abff")+
+  # Factor 
+  geom_mark_ellipse(data=coord.sit, aes(x=RDA1,y=RDA2,fill=grp,group=grp),alpha=0.30)  +
+  
+  geom_hline(yintercept=0,linetype=3,size=1) + 
+  geom_vline(xintercept=0,linetype=3,size=1)+
+  guides(shape=guide_legend(title=NULL,color="black"),
+         fill=guide_legend(title=NULL))+
+  theme_bw()+theme(panel.grid=element_blank())
+
+```
+
+
+
+
+
+<b style='color:#1f78b4;'>
+
+## **Taller de entrenamiento**
+
+</b>
+
+**Objetivo:** Poner en práctica los conceptos vistos en este taller, realizando las siguientes opciones realizando un RDA con las variables biológicas (taxones) y variables ambientales. Enviar los resultados al *Teams* del profesor.
+
